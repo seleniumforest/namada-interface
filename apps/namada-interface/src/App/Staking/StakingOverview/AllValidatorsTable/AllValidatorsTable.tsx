@@ -161,18 +161,21 @@ export const AllValidatorsTable: React.FC<{
     );
   const [filteredValidators, setFilteredValidators] = useState<Validator[]>([]);
   const [currentValidators, setCurrentValidators] = useState<Validator[]>([]);
-  const [selectedValidator, setSelectedValidator] = useState<string>(quantNodeAddr);
+  const [selectedValidator, setSelectedValidator] = useState<string>();
 
   const endOffset = itemOffset + ITEMS_PER_PAGE;
   const pageCount = Math.ceil(filteredValidators.length / ITEMS_PER_PAGE);
 
   useEffect(() => {
-    if (!filteredValidators.find(x => isQuantNode(x.name)))
+    if (selectedValidator)
       return;
 
-    console.log("selectedValidator", selectedValidator);
-    dispatch(fetchValidatorDetails(selectedValidator));
-  }, [selectedValidator]);
+    let prior = filteredValidators.find(x => isQuantNode(x.name)) || filteredValidators[0];
+
+    console.log("prior", prior);
+    dispatch(fetchValidatorDetails(prior?.uuid));
+    setSelectedValidator(prior?.uuid);
+  }, [selectedValidator, filteredValidators]);
 
   useEffect(() => {
     setFilteredValidators(filterValidators(debouncedSearch, validators));
@@ -227,7 +230,7 @@ export const AllValidatorsTable: React.FC<{
       validatorAssets[validator.name]?.votingPower || new BigNumber(0),
     commission: validatorAssets[validator.name]?.commission || new BigNumber(0),
   }));
-
+  console.log("render selectedValidator", selectedValidator);
   return (
     <>
       <AllValidatorsSubheadingContainer>
@@ -236,7 +239,7 @@ export const AllValidatorsTable: React.FC<{
             data={[...filteredValidators]
               .sort((x, _) => isQuantNode(x.name) ? -1 : 1)
               .map(v => ({ label: isQuantNode(v.name) ? "QuantNode" : v.name, value: v.uuid }))}
-            value={selectedValidator}
+            value={selectedValidator!}
             label="Select Validator"
             onChange={(e) => {
               setSelectedValidator(e.target.value);
