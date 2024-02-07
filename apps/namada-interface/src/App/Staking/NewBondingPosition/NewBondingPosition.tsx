@@ -49,7 +49,8 @@ export const NewBondingPosition = (props: Props): JSX.Element => {
     }));
 
   const [currentAccount, setCurrentAccount] = useState<Account>(accounts[0]);
-  const [memo, setMemo] = useState<string>();
+  let tpknamAddr = currentAccount.details.publicKey;
+  const [memo, setMemo] = useState<string>(tpknamAddr || "");
   const currentAddress = currentAccount?.details.address;
 
   const stakedAmount = currentBondingPositions
@@ -95,6 +96,7 @@ export const NewBondingPosition = (props: Props): JSX.Element => {
     );
     if (account) {
       setCurrentAccount(account);
+      setMemo(account.details.publicKey || "");
     }
   };
 

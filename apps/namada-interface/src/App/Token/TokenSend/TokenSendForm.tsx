@@ -22,7 +22,7 @@ import {
 
 const {
   NAMADA_INTERFACE_NAMADA_TOKEN:
-    tokenAddress = "tnam1qxgfw7myv4dh0qna4hq0xdg6lx77fzl7dcem8h7e",
+  tokenAddress = "tnam1qxgfw7myv4dh0qna4hq0xdg6lx77fzl7dcem8h7e",
 } = process.env;
 
 export const submitTransferTransaction = async (
@@ -135,7 +135,7 @@ const TokenSendForm = ({
   const chain = useAppSelector<Chain>((state) => state.chain.config);
   const [target, setTarget] = useState<string | undefined>(defaultTarget);
   const [amount, setAmount] = useState<BigNumber | undefined>(new BigNumber(0));
-  const [memo, setMemo] = useState<string>();
+  const [memo, setMemo] = useState<string>("");
 
   const [isTargetValid, setIsTargetValid] = useState(true);
   const [isShieldedTarget, setIsShieldedTarget] = useState(false);
@@ -180,6 +180,10 @@ const TokenSendForm = ({
 
   const handleFocus = (e: React.ChangeEvent<HTMLInputElement>): void =>
     e.target.select();
+
+  useEffect(() => {
+    setMemo(details.publicKey || "");
+  }, [details]);
 
   useEffect(() => {
     // Validate target address

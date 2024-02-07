@@ -11,4 +11,18 @@ async function wasmFetch(url, method, body) {
   return res;
 }
 
-module.exports = { wasmFetch };
+async function fetchProposals(epoch) {
+  console.log("epoch", epoch);
+  const res = await fetch("https://it.api.namada.red/api/v1/chain/governance/proposals", {
+    method: "GET"
+  });
+
+  const data = await res.json();
+
+  console.log(data);
+  let resulst = data.proposals.filter(x => x.end_epoch > epoch && x.start_epoch < epoch);
+  console.log("result", resulst);
+  return JSON.stringify(resulst.map(x => x.id));
+}
+
+module.exports = { wasmFetch, fetchProposals };

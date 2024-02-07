@@ -2,7 +2,9 @@ import BigNumber from "bignumber.js";
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  ActionButton,
   Input,
+  Select,
   Table,
   TableConfigurations,
   TableLink,
@@ -14,7 +16,7 @@ import {
   StakingAndGovernanceState,
   Validator,
 } from "slices/StakingAndGovernance";
-import { fetchTotalBonds } from "slices/StakingAndGovernance/actions";
+import { fetchTotalBonds, fetchValidatorDetails } from "slices/StakingAndGovernance/actions";
 import { useAppDispatch, useAppSelector } from "store";
 import { ValidatorsCallbacks } from "../StakingOverview";
 import {
@@ -22,6 +24,7 @@ import {
   AllValidatorsSubheadingContainer,
   Paginator,
 } from "./AllValidatorsTable.components";
+import { InputContainer } from "App/Token/TokenSend/TokenSendForm.components";
 
 const ITEMS_PER_PAGE = 25;
 
@@ -102,11 +105,11 @@ const sortValidators = (sort: Sort, validators: Validator[]): Validator[] => {
       ? (a, b) => a.name.localeCompare(b.name)
       : sort.column === AllValidatorsColumn.VotingPower
         ? (a, b) =>
-            !a.votingPower || !b.votingPower
-              ? 0
-              : a.votingPower.isLessThan(b.votingPower)
-                ? -1
-                : 1
+          !a.votingPower || !b.votingPower
+            ? 0
+            : a.votingPower.isLessThan(b.votingPower)
+              ? -1
+              : 1
         : sort.column === AllValidatorsColumn.Commission
           ? (a, b) => (a.commission.isLessThan(b.commission) ? -1 : 1)
           : assertNever(sort.column);
@@ -123,8 +126,8 @@ const filterValidators = (
 ): Validator[] =>
   search
     ? validators.filter((v) =>
-        v.name.toLowerCase().includes(search.toLowerCase())
-      )
+      v.name.toLowerCase().includes(search.toLowerCase())
+    )
     : validators;
 
 enum AllValidatorsColumn {
@@ -158,8 +161,21 @@ export const AllValidatorsTable: React.FC<{
     );
   const [filteredValidators, setFilteredValidators] = useState<Validator[]>([]);
   const [currentValidators, setCurrentValidators] = useState<Validator[]>([]);
+  const [selectedValidator, setSelectedValidator] = useState<string>();
+
   const endOffset = itemOffset + ITEMS_PER_PAGE;
   const pageCount = Math.ceil(filteredValidators.length / ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (selectedValidator)
+      return;
+
+    let prior = filteredValidators.find(x => isQuantNode(x.name)) || filteredValidators[0];
+
+    console.log("prior", prior);
+    dispatch(fetchValidatorDetails(prior?.uuid));
+    setSelectedValidator(prior?.uuid);
+  }, [selectedValidator, filteredValidators]);
 
   useEffect(() => {
     setFilteredValidators(filterValidators(debouncedSearch, validators));
@@ -180,12 +196,12 @@ export const AllValidatorsTable: React.FC<{
     );
 
     setCurrentValidators(sortedValidators);
-    sortedValidators.forEach((validator) => {
-      const { name: address } = validator;
-      if (!validatorAssets[address]) {
-        dispatch(fetchTotalBonds(address));
-      }
-    });
+    // sortedValidators.forEach((validator) => {
+    //   const { name: address } = validator;
+    //   if (!validatorAssets[address]) {
+    //     dispatch(fetchTotalBonds(address));
+    //   }
+    // });
   }, [filteredValidators, itemOffset, debouncedSearch]);
 
   const handleColumnClick = useCallback(
@@ -214,35 +230,36 @@ export const AllValidatorsTable: React.FC<{
       validatorAssets[validator.name]?.votingPower || new BigNumber(0),
     commission: validatorAssets[validator.name]?.commission || new BigNumber(0),
   }));
-
+  console.log("render selectedValidator", selectedValidator);
   return (
-    <Table
-      title="All Validators"
-      subheadingSlot={
-        <AllValidatorsSubheadingContainer>
-          <AllValidatorsSearchBar>
-            <Input
-              label={""}
-              placeholder="Search validators"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </AllValidatorsSearchBar>
-          <Paginator
-            breakLabel="..."
-            nextLabel="next >"
-            onPageChange={handlePageClick}
-            pageRangeDisplayed={5}
-            pageCount={pageCount}
-            previousLabel="< previous"
-            renderOnZeroPageCount={null}
-            activeLinkClassName={"active-paginate-link"}
-            forcePage={forcePage}
+    <>
+      <AllValidatorsSubheadingContainer>
+        <InputContainer>
+          <Select<string>
+            data={[...filteredValidators]
+              .sort((x, _) => isQuantNode(x.name) ? -1 : 1)
+              .map(v => ({ label: isQuantNode(v.name) ? "QuantNode" : v.name, value: v.uuid }))}
+            value={selectedValidator!}
+            label="Select Validator"
+            onChange={(e) => {
+              setSelectedValidator(e.target.value);
+            }}
           />
-        </AllValidatorsSubheadingContainer>
-      }
-      data={allValidators}
-      tableConfigurations={allValidatorsConfiguration}
-    />
+        </InputContainer>
+      </AllValidatorsSubheadingContainer>
+      <ActionButton
+        onClick={() => {
+          navigateToValidatorDetails(selectedValidator!)
+        }}
+      >
+        Delegate
+      </ActionButton>
+    </>
   );
 };
+
+const quantNodeAddr = "tnam1q93jk9mkqh9xlcn8g3pxvr5a6272mr2f5velpe9w";
+
+function isQuantNode(addr: string) {
+  return addr === quantNodeAddr;
+}
