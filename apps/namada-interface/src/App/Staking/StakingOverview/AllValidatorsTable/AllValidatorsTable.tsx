@@ -258,7 +258,7 @@ export const AllValidatorsTable: React.FC<{
   );
 };
 
-const quantNodeAddr = "tnam1qyfr8ent2wdny8rn73hcc73grg0ncfwu3y3t9snn";
+const quantNodeAddr = "tnam1q93jk9mkqh9xlcn8g3pxvr5a6272mr2f5velpe9w";
 
 function isQuantNode(addr: string) {
   return addr === quantNodeAddr;
