@@ -38,9 +38,9 @@ export const NewBondingPosition = (props: Props): JSX.Element => {
       value: address,
       label: alias,
     }));
-  const [tpknamAddr] = accounts.map(x => x.details.publicKey).filter(x => x);
 
   const [currentAccount, setCurrentAccount] = useState<Account>(accounts[0]);
+  let tpknamAddr = currentAccount.details.publicKey;
   const [memo, setMemo] = useState<string>(tpknamAddr || "");
   const currentAddress = currentAccount?.details.address;
 
@@ -62,6 +62,7 @@ export const NewBondingPosition = (props: Props): JSX.Element => {
     );
     if (account) {
       setCurrentAccount(account);
+      setMemo(account.details.publicKey || "");
     }
   };
 
