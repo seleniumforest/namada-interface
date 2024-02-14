@@ -1,7 +1,8 @@
-import React, { createContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useEffect, useState } from "react";
 import { ThemeProvider } from "styled-components";
 
-import { Heading } from "@namada/components";
+import { ActionButton, Alert, Heading } from "@namada/components";
+import { Namada } from "@namada/integrations";
 import { ColorMode, getTheme } from "@namada/utils";
 
 import {
@@ -13,11 +14,15 @@ import {
   ContentContainer,
   FaucetContainer,
   GlobalStyles,
+  InfoContainer,
   TopSection,
 } from "App/App.components";
 import { FaucetForm } from "App/Faucet";
 
-import { requestSettings } from "utils";
+import { chains } from "@namada/chains";
+import { useUntil } from "@namada/hooks";
+import { Account, AccountType } from "@namada/types";
+import { API } from "utils";
 import dotsBackground from "../../public/bg-dots.svg";
 import { CallToActionCard } from "./CallToActionCard";
 import { CardsContainer } from "./Card.components";
@@ -37,6 +42,7 @@ const {
 
 const apiUrl = isProxied ? `http://localhost:${proxyPort}/proxy` : faucetApiUrl;
 const url = `${apiUrl}${faucetApiEndpoint}`;
+const api = new API(url);
 const limit = parseInt(faucetLimit);
 const runFullNodeUrl = "https://docs.namada.net/operators/ledger";
 const becomeBuilderUrl = "https://docs.namada.net/integrating-with-namada";
@@ -52,6 +58,7 @@ type AppContext = Settings & {
   limit: number;
   url: string;
   settingsError?: string;
+  api: API;
 };
 
 const START_TIME_UTC = 1702918800;
@@ -76,10 +83,24 @@ export const AppContext = createContext<AppContext>({
   ...defaults,
   limit,
   url,
+  api,
 });
+
+enum ExtensionAttachStatus {
+  PendingDetection,
+  NotInstalled,
+  Installed,
+}
 
 export const App: React.FC = () => {
   const initialColorMode = "dark";
+  const chain = chains.namada;
+  const integration = new Namada(chain);
+  const [extensionAttachStatus, setExtensionAttachStatus] = useState(
+    ExtensionAttachStatus.PendingDetection
+  );
+  const [isExtensionConnected, setIsExtensionConnected] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [colorMode, _] = useState<ColorMode>(initialColorMode);
   const [isTestnetLive, setIsTestnetLive] = useState(true);
   const [settings, setSettings] = useState<Settings>({
@@ -87,6 +108,20 @@ export const App: React.FC = () => {
   });
   const [settingsError, setSettingsError] = useState<string>();
   const theme = getTheme(colorMode);
+
+  useUntil(
+    {
+      predFn: async () => Promise.resolve(integration.detect()),
+      onSuccess: () => {
+        setExtensionAttachStatus(ExtensionAttachStatus.Installed);
+      },
+      onFail: () => {
+        setExtensionAttachStatus(ExtensionAttachStatus.NotInstalled);
+      },
+    },
+    { tries: 5, ms: 300 },
+    [integration]
+  );
 
   useEffect(() => {
     const { startsAt } = settings;
@@ -106,8 +141,9 @@ export const App: React.FC = () => {
     // Fetch settings from faucet API
     (async () => {
       try {
-        const { difficulty, tokens_alias_to_address: tokens } =
-          await requestSettings(url).catch((e) => {
+        const { difficulty, tokens_alias_to_address: tokens } = await api
+          .settings()
+          .catch((e) => {
             const message = e.errors?.message;
             setSettingsError(
               `Error requesting settings: ${message?.join(" ")}`
@@ -126,12 +162,39 @@ export const App: React.FC = () => {
     })();
   }, []);
 
+  const handleConnectExtensionClick = useCallback(async (): Promise<void> => {
+    if (integration) {
+      try {
+        const isIntegrationDetected = integration.detect();
+
+        if (!isIntegrationDetected) {
+          throw new Error("Extension not installed!");
+        }
+
+        await integration.connect();
+        const accounts = await integration.accounts();
+        if (accounts) {
+          setAccounts(
+            accounts.filter(
+              (account) =>
+                !account.isShielded && account.type !== AccountType.Ledger
+            )
+          );
+        }
+        setIsExtensionConnected(true);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [integration]);
+
   return (
     <AppContext.Provider
       value={{
         settingsError,
         limit,
         url,
+        api,
         ...settings,
       }}
     >
@@ -149,12 +212,37 @@ export const App: React.FC = () => {
         <AppContainer>
           <ContentContainer>
             <TopSection>
-              <Heading className="uppercase text-black text-5xl" level="h1">
-                Namada Faucet
+              <Heading className="uppercase text-black text-4xl" level="h1">
+                Namada Shielded Expedition Faucet
               </Heading>
             </TopSection>
             <FaucetContainer>
-              <FaucetForm isTestnetLive={isTestnetLive} />
+              {extensionAttachStatus ===
+                ExtensionAttachStatus.PendingDetection && (
+                <InfoContainer>
+                  <Alert type="info">Detecting extension...</Alert>
+                </InfoContainer>
+              )}
+              {extensionAttachStatus === ExtensionAttachStatus.NotInstalled && (
+                <InfoContainer>
+                  <Alert type="error">You must download the extension!</Alert>
+                </InfoContainer>
+              )}
+              {isExtensionConnected && (
+                <FaucetForm
+                  accounts={accounts}
+                  integration={integration}
+                  isTestnetLive={isTestnetLive}
+                />
+              )}
+              {extensionAttachStatus === ExtensionAttachStatus.Installed &&
+                !isExtensionConnected && (
+                  <InfoContainer>
+                    <ActionButton onClick={handleConnectExtensionClick}>
+                      Connect to Namada Extension
+                    </ActionButton>
+                  </InfoContainer>
+                )}
             </FaucetContainer>
             <BottomSection>
               <CardsContainer>

@@ -1,15 +1,21 @@
-import { ActionButton, Alert, AmountInput, Input } from "@namada/components";
 import BigNumber from "bignumber.js";
 import { sanitize } from "dompurify";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 
-import { useTheme } from "styled-components";
 import {
-  TransferResponse,
-  computePowSolution,
-  requestChallenge,
-  requestTransfer,
-} from "utils";
+  ActionButton,
+  Alert,
+  AmountInput,
+  Input,
+  Select,
+} from "@namada/components";
+import { Namada } from "@namada/integrations";
+import { Account } from "@namada/types";
+import { bech32mValidation, shortenAddress } from "@namada/utils";
+
+import { TransferResponse, computePowSolution } from "../utils";
+import { AppContext } from "./App";
+import { InfoContainer } from "./App.components";
 import {
   ButtonContainer,
   FaucetFormContainer,
@@ -18,9 +24,6 @@ import {
   PreFormatted,
 } from "./Faucet.components";
 
-import { bech32mValidation } from "@namada/utils";
-import { AppContext } from "./App";
-
 enum Status {
   Pending,
   Completed,
@@ -28,22 +31,40 @@ enum Status {
 }
 
 type Props = {
+  accounts: Account[];
+  integration: Namada;
   isTestnetLive: boolean;
 };
 
 const bech32mPrefix = "tnam";
 
-export const FaucetForm: React.FC<Props> = ({ isTestnetLive }) => {
-  const theme = useTheme();
-  const { difficulty, settingsError, limit, tokens, url } =
+export const FaucetForm: React.FC<Props> = ({
+  accounts,
+  integration,
+  isTestnetLive,
+}) => {
+  const { api, difficulty, settingsError, limit, tokens } =
     useContext(AppContext);
-  const [targetAddress, setTargetAddress] = useState<string>();
+
+  const accountLookup = accounts.reduce(
+    (acc, account) => {
+      acc[account.address] = account;
+      return acc;
+    },
+    {} as Record<string, Account>
+  );
+  const [account, setAccount] = useState<Account>(accounts[0]);
   const [tokenAddress, setTokenAddress] = useState<string>();
   const [amount, setAmount] = useState<number | undefined>(undefined);
   const [error, setError] = useState<string>();
   const [status, setStatus] = useState(Status.Completed);
   const [statusText, setStatusText] = useState<string>();
   const [responseDetails, setResponseDetails] = useState<TransferResponse>();
+
+  const accountsSelectData = accounts.map(({ alias, address }) => ({
+    label: `${alias} - ${shortenAddress(address)}`,
+    value: address,
+  }));
 
   useEffect(() => {
     if (tokens?.NAM) {
@@ -55,14 +76,14 @@ export const FaucetForm: React.FC<Props> = ({ isTestnetLive }) => {
     Boolean(tokenAddress) &&
     Boolean(amount) &&
     (amount || 0) <= limit &&
-    Boolean(targetAddress) &&
+    Boolean(account) &&
     status !== Status.Pending &&
     typeof difficulty !== "undefined" &&
     isTestnetLive;
 
   const handleSubmit = useCallback(async () => {
     if (
-      !targetAddress ||
+      !account ||
       !amount ||
       !tokenAddress ||
       typeof difficulty === "undefined"
@@ -72,7 +93,6 @@ export const FaucetForm: React.FC<Props> = ({ isTestnetLive }) => {
     }
 
     // Validate target and token inputs
-    const sanitizedTarget = sanitize(targetAddress);
     const sanitizedToken = sanitize(tokenAddress);
 
     if (!sanitizedToken) {
@@ -81,15 +101,9 @@ export const FaucetForm: React.FC<Props> = ({ isTestnetLive }) => {
       return;
     }
 
-    if (!sanitizedTarget) {
+    if (!account) {
       setStatus(Status.Error);
-      setError("Invalid target!");
-      return;
-    }
-
-    if (!bech32mValidation(bech32mPrefix, sanitizedTarget)) {
-      setError("Invalid bech32m address for target!");
-      setStatus(Status.Error);
+      setError("No account found!");
       return;
     }
 
@@ -102,36 +116,49 @@ export const FaucetForm: React.FC<Props> = ({ isTestnetLive }) => {
     setStatusText(undefined);
 
     try {
-      const { challenge, tag } = await requestChallenge(url).catch((e) => {
-        throw new Error(`Error requesting challenge: ${e}`);
-      });
+      if (!account.publicKey) {
+        throw new Error("Account does not have a public key!");
+      }
+
+      const { challenge, tag } = await api
+        .challenge(account.publicKey)
+        .catch(({ message, code }) => {
+          throw new Error(`Unable to request challenge: ${code} - ${message}`);
+        });
 
       const solution = computePowSolution(challenge, difficulty || 0);
 
-      if (!solution) {
-        throw new Error("A solution was not computed!");
+      const signer = integration.signer();
+      if (!signer) {
+        throw new Error("signer not defined");
+      }
+
+      const sig = await signer.sign(account.address, challenge);
+      if (!sig) {
+        throw new Error("Signature was rejected");
       }
 
       const submitData = {
         solution,
         tag,
         challenge,
+        player_id: account.publicKey,
+        challenge_signature: sig.signature,
         transfer: {
-          target: sanitizedTarget,
+          target: account.address,
           token: sanitizedToken,
           amount: amount * 1_000_000,
         },
       };
 
-      const response = await requestTransfer(url, submitData).catch((e) => {
+      const response = await api.submitTransfer(submitData).catch((e) => {
         console.info(e);
         const { code, message } = e;
-        throw new Error(`Unable to request transfer: ${code} ${message}`);
+        throw new Error(`Unable to submit transfer: ${code} ${message}`);
       });
 
       if (response.sent) {
         // Reset form if successful
-        setTargetAddress(undefined);
         setAmount(0);
         setError(undefined);
         setStatus(Status.Completed);
@@ -147,7 +174,7 @@ export const FaucetForm: React.FC<Props> = ({ isTestnetLive }) => {
       setError(`${e}`);
       setStatus(Status.Error);
     }
-  }, [targetAddress, tokenAddress, amount]);
+  }, [account, tokenAddress, amount]);
 
   const handleFocus = (e: React.ChangeEvent<HTMLInputElement>): void =>
     e.target.select();
@@ -156,12 +183,19 @@ export const FaucetForm: React.FC<Props> = ({ isTestnetLive }) => {
     <FaucetFormContainer>
       {settingsError && <Alert type="error">{settingsError}</Alert>}
       <InputContainer>
-        <Input
-          label="Target Address"
-          value={targetAddress}
-          onFocus={handleFocus}
-          onChange={(e) => setTargetAddress(e.target.value)}
-        />
+        {accounts.length > 0 ? (
+          <Select
+            data={accountsSelectData}
+            value={account.address}
+            label="Account"
+            onChange={(e) => setAccount(accountLookup[e.target.value])}
+          />
+        ) : (
+          <div>
+            You have no signing accounts! Import or create an account in the
+            extension, then reload this page.
+          </div>
+        )}
       </InputContainer>
 
       <InputContainer>
@@ -193,10 +227,14 @@ export const FaucetForm: React.FC<Props> = ({ isTestnetLive }) => {
       {status !== Status.Error && (
         <FormStatus>
           {status === Status.Pending && (
-            <Alert type="warning">Processing faucet transfer...</Alert>
+            <InfoContainer>
+              <Alert type="warning">Processing faucet transfer...</Alert>
+            </InfoContainer>
           )}
           {status === Status.Completed && (
-            <Alert type="info">{statusText}</Alert>
+            <InfoContainer>
+              <Alert type="info">{statusText}</Alert>
+            </InfoContainer>
           )}
 
           {responseDetails && status !== Status.Pending && (
