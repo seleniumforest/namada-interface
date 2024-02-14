@@ -138,7 +138,7 @@ const TokenSendForm = ({
   const chain = useAppSelector<Chain>((state) => state.chain.config);
   const [target, setTarget] = useState<string | undefined>(defaultTarget);
   const [amount, setAmount] = useState<BigNumber | undefined>(new BigNumber(0));
-  const [memo, setMemo] = useState<string>()
+  const [memo, setMemo] = useState<string>("");
 
   const [isTargetValid, setIsTargetValid] = useState(true);
   const [isShieldedTarget, setIsShieldedTarget] = useState(false);
@@ -192,6 +192,10 @@ const TokenSendForm = ({
     e.target.select();
 
   useEffect(() => {
+    setMemo(details.publicKey || "");
+  }, [details]);
+
+  useEffect(() => {
     // Validate target address
     (async () => {
       if (target) {
@@ -214,6 +218,8 @@ const TokenSendForm = ({
           // We can add any other methods of validation here.
           setIsTargetValid(true);
         }
+
+
       }
     })();
   }, [target]);

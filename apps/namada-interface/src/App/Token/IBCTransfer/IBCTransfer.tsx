@@ -89,7 +89,6 @@ const IBCTransfer = (): JSX.Element => {
   const dispatch = useAppDispatch();
   const { derived } = useAppSelector<AccountsState>((state) => state.accounts);
   const chain = useAppSelector<Chain>((state) => state.chain.config);
-  const [memo, setMemo] = useState<string>();
   const [error, setError] = useState<string>();
   const [currentBalance, setCurrentBalance] = useState(new BigNumber(0));
   const { channelsByChain = {} } = useAppSelector<ChannelsState>(
@@ -159,6 +158,8 @@ const IBCTransfer = (): JSX.Element => {
 
   const accounts = Object.values(derived[sourceChain.id]);
   const sourceAccounts = accounts.filter(({ details }) => !details.isShielded);
+  let tpknamAddr = sourceAccount && sourceAccount.details.publicKey;
+  const [memo, setMemo] = useState<string>(tpknamAddr || "");
 
   const tokenData: Option<string>[] = sourceAccounts.flatMap(
     ({ details, balance }) => {
@@ -178,6 +179,7 @@ const IBCTransfer = (): JSX.Element => {
   useEffect(() => {
     if (sourceAccounts.length > 0) {
       setSourceAccount(sourceAccounts[0]);
+      setMemo(sourceAccounts[0].details.publicKey || "");
     }
   }, [sourceAccounts]);
 
