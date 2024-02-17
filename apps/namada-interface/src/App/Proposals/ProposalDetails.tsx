@@ -58,6 +58,12 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
   const [maybeActiveDelegator, setActiveDelegator] = useState<O.Option<string>>(
     O.none
   );
+  console.log(derived);
+
+  let tpknamAddr = O.isSome(maybeActiveDelegator) && maybeActiveDelegator.value.startsWith("tnam1") ?
+    derived.namada[maybeActiveDelegator.value].details.publicKey :
+    undefined;
+  console.log("tpknamAddr", tpknamAddr);
   const [open, setOpen] = useState<boolean>(props.open);
 
   const onContainerClick = useCallback(
@@ -71,7 +77,7 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
   );
 
   const vote = useCallback(
-    async (vote: boolean) => {
+    async (vote: boolean, memo: string) => {
       const voteStr = vote ? "yay" : "nay";
       const integration = getIntegration(chains.namada.id);
       const signer = integration.signer() as Signer;
@@ -96,6 +102,7 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
           feeAmount: new BigNumber(0),
           gasLimit: new BigNumber(20_000),
           chainId: chains.namada.chainId,
+          memo: memo || ""
         },
         AccountType.Mnemonic
       );
@@ -235,11 +242,11 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
                     setActiveDelegator(O.some(e.target.value));
                   }}
                 />
-                Power: {delegations[delegatorAddress].toString()}
+                Power: {delegations?.[delegatorAddress]?.toString()}
               </ProposalDetailsAddresses>
               <ProposalDetailsButtons>
                 <ProposalCardVoteButton
-                  onClick={() => vote(true)}
+                  onClick={() => vote(true, tpknamAddr!)}
                   disabled={activeProposalVotes.get(delegatorAddress) === true}
                   title={
                     activeProposalVotes.get(delegatorAddress)
@@ -250,7 +257,7 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
                   Vote YAY
                 </ProposalCardVoteButton>
                 <ProposalCardVoteButton
-                  onClick={() => vote(false)}
+                  onClick={() => vote(false, tpknamAddr!)}
                   disabled={activeProposalVotes.get(delegatorAddress) === false}
                   title={
                     !activeProposalVotes.get(delegatorAddress)
