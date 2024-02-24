@@ -242,7 +242,7 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
                     setActiveDelegator(O.some(e.target.value));
                   }}
                 />
-                Power: {delegations?.[delegatorAddress]?.toString()}
+                Power: {+delegations?.[delegatorAddress]?.toString() / 1000000}
               </ProposalDetailsAddresses>
               <ProposalDetailsButtons>
                 <ProposalCardVoteButton

@@ -178,8 +178,8 @@ const IBCTransfer = (): JSX.Element => {
 
   useEffect(() => {
     if (sourceAccounts.length > 0) {
-      setSourceAccount(sourceAccounts[0]);
-      setMemo(sourceAccounts[0].details.publicKey || "");
+      //setSourceAccount(sourceAccounts[0]);
+      setMemo(sourceAccount?.details.publicKey || sourceAccounts[0].details.publicKey || "");
     }
   }, [sourceAccounts]);
 
