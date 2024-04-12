@@ -27,19 +27,19 @@ const promiseWithTimeout =
     fn: (...args: U) => Promise<T>,
     opts?: TimeoutOpts
   ) =>
-  (...args: U): Promise<T> => {
-    const { timeout, error } = { ...DEFAULT_OPTS, ...opts };
+    (...args: U): Promise<T> => {
+      const { timeout, error } = { ...DEFAULT_OPTS, ...opts };
 
-    return new Promise(async (resolve, reject) => {
-      const t = setTimeout(() => {
-        reject(error(timeout));
-      }, timeout);
+      return new Promise(async (resolve, reject) => {
+        const t = setTimeout(() => {
+          reject(error(timeout));
+        }, timeout);
 
-      const res = await fn(...args);
-      clearTimeout(t);
-      resolve(res);
-    });
-  };
+        const res = await fn(...args);
+        clearTimeout(t);
+        resolve(res);
+      });
+    };
 
 //Fallbacks for rust panics
 export class Query extends RustQuery {
@@ -54,9 +54,9 @@ export class Query extends RustQuery {
   );
   query_total_bonds = promiseWithTimeout(super.query_total_bonds.bind(this));
   delegators_votes = promiseWithTimeout(super.delegators_votes.bind(this));
-  queryProposals = async (): Promise<Proposal[]> => {
+  queryProposals = async (status: string): Promise<Proposal[]> => {
     const fn = this._query_proposals;
-    const serializedProposals = await fn();
+    const serializedProposals = await fn(status);
     const { proposals } = deserialize(serializedProposals, Proposals);
     return proposals;
   };

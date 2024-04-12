@@ -31,7 +31,7 @@ export class Rpc {
   constructor(
     protected readonly sdk: SdkWasm,
     protected readonly query: QueryWasm
-  ) {}
+  ) { }
 
   /**
    * Query balances from chain
@@ -79,8 +79,8 @@ export class Rpc {
    * @async
    * @returns List of the proposals
    */
-  async queryProposals(): Promise<Proposal[]> {
-    const serializedProposals = await this.query.query_proposals();
+  async queryProposals(status: string): Promise<Proposal[]> {
+    const serializedProposals = await this.query.query_proposals(status);
     const { proposals } = deserialize(serializedProposals, Proposals);
     return proposals;
   }

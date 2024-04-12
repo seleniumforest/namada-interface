@@ -31,18 +31,17 @@ enum ProposalsActions {
 
 export const fetchProposals = createAsyncThunk<
   Proposal[],
-  void,
+  any,
   { state: RootState }
 >(
   `${PROPOSALS_ACTIONS_BASE}/${ProposalsActions.FetchProposals}`,
-  async (_, thunkApi) => {
+  async ({ status }: any, thunkApi) => {
     const { rpc } = thunkApi.getState().chain.config;
     const query = new Query(rpc);
     let proposals: Proposal[] = [];
 
     try {
-      const sdkProposals = await query.queryProposals();
-
+      const sdkProposals = await query.queryProposals(status);
       proposals = sdkProposals.map((proposal) => ({
         ...proposal,
         content: JSON.parse(proposal.contentJSON) as Record<string, string>,
@@ -50,6 +49,7 @@ export const fetchProposals = createAsyncThunk<
     } catch (e) {
       console.error(e);
     }
+
 
     return proposals;
   }

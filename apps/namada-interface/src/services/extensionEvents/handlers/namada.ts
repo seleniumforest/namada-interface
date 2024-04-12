@@ -15,14 +15,14 @@ export const NamadaAccountChangedHandler =
     integration: Namada,
     refreshAccounts: () => Promise<void>
   ) =>
-  async () => {
-    refreshAccounts();
+    async () => {
+      refreshAccounts();
 
-    const accounts = (await integration.accounts()) || [];
+      const accounts = (await integration.accounts()) || [];
 
-    dispatch(addAccounts(accounts));
-    dispatch(fetchBalances());
-  };
+      dispatch(addAccounts(accounts));
+      dispatch(fetchBalances());
+    };
 
 export const NamadaNetworkChangedHandler =
   (
@@ -30,19 +30,19 @@ export const NamadaNetworkChangedHandler =
     integration: Namada,
     refreshChain: () => Promise<void>
   ) =>
-  async () => {
-    refreshChain();
+    async () => {
+      refreshChain();
 
-    const chain = await integration.getChain();
-    if (chain) {
-      dispatch(setChain(chain));
-      dispatch(fetchBalances());
-    }
-  };
+      const chain = await integration.getChain();
+      if (chain) {
+        dispatch(setChain(chain));
+        dispatch(fetchBalances());
+      }
+    };
 
 export const NamadaProposalsUpdatedHandler =
   (dispatch: Dispatch<unknown>) => async () => {
-    dispatch(fetchProposals());
+    dispatch(fetchProposals("ongoing"));
   };
 
 export const NamadaUpdatedBalancesHandler =
@@ -69,28 +69,28 @@ export const NamadaTxStartedHandler =
 
 export const NamadaTxCompletedHandler =
   (dispatch: Dispatch<unknown>, refreshPublicKeys: () => void) =>
-  async (event: CustomEventInit) => {
-    const { msgId, txType, success, payload } = event.detail;
-    if (!success) {
-      console.warn(`${txType} failed:`, payload);
-    }
-    dispatch(
-      notificationsActions.txCompletedToast({
-        id: msgId,
-        txTypeLabel: TxTypeLabel[txType as TxType],
-        success,
-        error: payload || "",
-      })
-    );
-    refreshPublicKeys();
-  };
+    async (event: CustomEventInit) => {
+      const { msgId, txType, success, payload } = event.detail;
+      if (!success) {
+        console.warn(`${txType} failed:`, payload);
+      }
+      dispatch(
+        notificationsActions.txCompletedToast({
+          id: msgId,
+          txTypeLabel: TxTypeLabel[txType as TxType],
+          success,
+          error: payload || "",
+        })
+      );
+      refreshPublicKeys();
+    };
 
 export const NamadaConnectionRevokedHandler =
   (
     integration: Namada,
     setNamadaExtensionConnected: (connected: boolean) => void
   ) =>
-  async () => {
-    const connected = !!(await integration.isConnected());
-    setNamadaExtensionConnected(connected);
-  };
+    async () => {
+      const connected = !!(await integration.isConnected());
+      setNamadaExtensionConnected(connected);
+    };

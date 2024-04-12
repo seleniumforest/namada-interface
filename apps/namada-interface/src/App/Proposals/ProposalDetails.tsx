@@ -60,12 +60,10 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
   );
   const [open, setOpen] = useState<boolean>(props.open);
 
-  console.log(derived);
 
   let tpknamAddr = O.isSome(maybeActiveDelegator) && maybeActiveDelegator.value.startsWith("tnam1") ?
     derived.namada[maybeActiveDelegator.value].details.publicKey :
     undefined;
-  console.log("tpknamAddr", tpknamAddr);
 
   const onContainerClick = useCallback(
     (e: React.MouseEvent<HTMLDialogElement>) => {
@@ -144,12 +142,12 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
   }, [JSON.stringify(addresses), maybeProposal]);
 
   if (
-    O.isSome(maybeActiveDelegator) &&
-    O.isSome(maybeDelegations) &&
+    // O.isSome(maybeActiveDelegator) &&
+    // O.isSome(maybeDelegations) &&
     O.isSome(maybeProposal)
   ) {
-    const delegatorAddress = maybeActiveDelegator.value;
-    const { delegations, order: delegationsOrder } = maybeDelegations.value;
+    const delegatorAddress = O.isSome(maybeActiveDelegator) ? maybeActiveDelegator.value : "";
+    const { delegations, order: delegationsOrder } = O.isSome(maybeDelegations) ? maybeDelegations.value : { delegations: [], order: [] };
     const { id, content, status } = maybeProposal.value;
     const { title, authors, details, motivation, license } = content;
     const canVote = !Object.values(delegations)
@@ -227,7 +225,7 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
           {/* We only want to allow to vote when:
             - the proposal is on-going
           */}
-          {status === "ongoing" && canVote && (
+          {status === "ongoing" && (
             <>
               <ProposalDetailsAddresses>
                 <ProposalDetailsAddressesHeader>
@@ -243,7 +241,7 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
                     setActiveDelegator(O.some(e.target.value));
                   }}
                 />
-                Power: {+delegations?.[delegatorAddress]?.toString() / 1000000}
+                Power: {+(delegations as any)?.[delegatorAddress]?.toString() / 1000000}
               </ProposalDetailsAddresses>
               <ProposalDetailsButtons>
                 <ProposalCardVoteButton

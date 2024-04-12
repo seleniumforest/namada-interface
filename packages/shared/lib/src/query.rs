@@ -42,7 +42,7 @@ pub struct Query {
 #[wasm_bindgen(module = "/src/rpc_client.js")]
 extern "C" {
     #[wasm_bindgen(catch, js_name = "fetchProposals")]
-    async fn fetchProposals(epoch: JsValue) -> Result<JsValue, JsValue>;
+    async fn fetchProposals(epoch: JsValue, status: JsValue) -> Result<JsValue, JsValue>;
 }
 
 #[wasm_bindgen]
@@ -400,7 +400,7 @@ impl Query {
     }
 
     /// Returns a list of all proposals
-    pub async fn query_proposals(&self) -> Result<Uint8Array, JsError> {
+    pub async fn query_proposals(&self, status: String) -> Result<Uint8Array, JsError> {
         let last_proposal_id_key = governance_storage::get_counter_key();
         let last_proposal_id =
             query_storage_value::<HttpClient, u64>(&self.client, &last_proposal_id_key)
@@ -416,90 +416,37 @@ impl Query {
         let mut proposals: Vec<ProposalInfo> = vec![];
         let epoch = RPC.shell().epoch(&self.client).await?;
 
-        for id in from_id..last_proposal_id {
-            let proposal = query_proposal_by_id(&self.client, id)
-                .await
-                .unwrap()
-                .expect("Proposal should be written to storage.");
-            let votes = compute_proposal_votes(&self.client, id, proposal.voting_end_epoch).await;
-            let total_voting_power =
-                get_total_staked_tokens(&self.client, proposal.voting_end_epoch)
-                    .await
-                    .unwrap();
-            //TODO: for now we assume that interface does not support steward accounts
-            let tally_type = proposal.get_tally_type(false);
+        let mut proposalIds: Vec<u64> = [].to_vec();
 
-            let proposal_type = match proposal.r#type {
-                ProposalType::PGFSteward(_) => "pgf_steward",
-                ProposalType::PGFPayment(_) => "pgf_payment",
-                ProposalType::Default(_) => "default",
-            };
-            let status =
-                if proposal.voting_start_epoch <= epoch && proposal.voting_end_epoch >= epoch {
-                    "ongoing"
-                } else if proposal.voting_end_epoch < epoch {
-                    "finished"
-                } else {
-                    "upcoming"
-                };
-
-            let content = serde_json::to_string(&proposal.content)?;
-
-            let proposal_result = compute_proposal_result(votes, total_voting_power, tally_type);
-
-            let proposal_info = ProposalInfo {
-                id: proposal.id.to_string(),
-                proposal_type: proposal_type.to_string(),
-                author: proposal.author.to_string(),
-                start_epoch: proposal.voting_start_epoch.0,
-                end_epoch: proposal.voting_end_epoch.0,
-                grace_epoch: proposal.grace_epoch.0,
-                content,
-                status: status.to_string(),
-                result: proposal_result.result.to_string(),
-                total_voting_power: proposal_result.total_voting_power.to_string_native(),
-                total_yay_power: proposal_result.total_yay_power.to_string_native(),
-                total_nay_power: proposal_result.total_nay_power.to_string_native(),
-            };
-
-            proposals.push(proposal_info);
+        let mut st = -1.0;
+        if status == "finished" {
+            st = 0.0;
+        }
+        if status == "ongoing" {
+            st = 2.0;
+        }
+        if status == "upcoming" {
+            st = 1.0;
         }
 
-        let mut writer = vec![];
-        BorshSerialize::serialize(&proposals, &mut writer)?;
+        let props = fetchProposals(JsValue::from_f64(epoch.0 as f64), JsValue::from_f64(st)).await;
+        match props {
+            Err(_) => {}
+            Ok(x) => proposalIds = serde_json::from_str(x.as_string().unwrap().as_str()).unwrap(),
+        }
 
-        Ok(Uint8Array::from(writer.as_slice()))
-    }
-
-    /// Returns a list of all proposals
-    pub async fn query_proposals1(&self) -> Result<Uint8Array, JsError> {
-        let last_proposal_id_key = governance_storage::get_counter_key();
-        let last_proposal_id =
-            query_storage_value::<HttpClient, u64>(&self.client, &last_proposal_id_key)
-                .await
-                .unwrap();
-
-        let from_id = if last_proposal_id > 10 {
-            last_proposal_id - 10
-        } else {
-            0
-        };
-
-        let mut proposals: Vec<ProposalInfo> = vec![];
-        let epoch = RPC.shell().epoch(&self.client).await?;
-
-        for id in from_id..last_proposal_id {
+        for id in proposalIds {
             let proposal = query_proposal_by_id(&self.client, id)
                 .await
                 .unwrap()
                 .expect("Proposal should be written to storage.");
-            let votes = compute_proposal_votes(&self.client, id, proposal.voting_end_epoch).await;
-            let total_voting_power =
-                get_total_staked_tokens(&self.client, proposal.voting_end_epoch)
-                    .await
-                    .unwrap();
-            //TODO: for now we assume that interface does not support steward accounts
-            let tally_type = proposal.get_tally_type(false);
+            // let votes = compute_proposal_votes(&self.client, id, proposal.voting_end_epoch).await;
+            // let total_voting_power =
+            //     get_total_staked_tokens(&self.client, proposal.voting_end_epoch)
+            //         .await
+            //         .unwrap();
+            // //TODO: for now we assume that interface does not support steward accounts
+            // let tally_type = proposal.get_tally_type(false);
 
             let proposal_type = match proposal.r#type {
                 ProposalType::PGFSteward(_) => "pgf_steward",
@@ -517,7 +464,7 @@ impl Query {
 
             let content = serde_json::to_string(&proposal.content)?;
 
-            let proposal_result = compute_proposal_result(votes, total_voting_power, tally_type);
+            //let proposal_result = compute_proposal_result(votes, total_voting_power, tally_type);
 
             let proposal_info = ProposalInfo {
                 id: proposal.id.to_string(),
@@ -528,10 +475,10 @@ impl Query {
                 grace_epoch: proposal.grace_epoch.0,
                 content,
                 status: status.to_string(),
-                result: proposal_result.result.to_string(),
-                total_voting_power: proposal_result.total_voting_power.to_string_native(),
-                total_yay_power: proposal_result.total_yay_power.to_string_native(),
-                total_nay_power: proposal_result.total_nay_power.to_string_native(),
+                result: "0".to_string(),
+                total_voting_power: "0".to_string(),
+                total_yay_power: "0".to_string(),
+                total_nay_power: "0".to_string(),
             };
 
             proposals.push(proposal_info);

@@ -230,7 +230,6 @@ export const AllValidatorsTable: React.FC<{
       validatorAssets[validator.name]?.votingPower || new BigNumber(0),
     commission: validatorAssets[validator.name]?.commission || new BigNumber(0),
   }));
-  console.log("render selectedValidator", selectedValidator);
   return (
     <>
       <AllValidatorsSubheadingContainer>
