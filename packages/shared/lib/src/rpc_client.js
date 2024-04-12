@@ -20,9 +20,9 @@ async function fetchProposals(epoch) {
   const data = await res.json();
 
   console.log(data);
-  let resulst = data.proposals.filter(x => x.end_epoch > epoch && x.start_epoch < epoch);
-  console.log("result", resulst);
-  return JSON.stringify(resulst.map(x => x.id));
+  let result = data.proposals.filter(x => x.end_epoch > epoch && x.start_epoch < epoch);
+  console.log("result", result);
+  return JSON.stringify(result.map(x => x.id));
 }
 
 module.exports = { wasmFetch, fetchProposals };
