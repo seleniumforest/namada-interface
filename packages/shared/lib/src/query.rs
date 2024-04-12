@@ -416,33 +416,18 @@ impl Query {
         let mut proposals: Vec<ProposalInfo> = vec![];
         let epoch = RPC.shell().epoch(&self.client).await?;
 
-        let mut proposalIds: Vec<u64> = [].to_vec();
-        let props = fetchProposals(JsValue::from_f64(epoch.0 as f64)).await;
-        match props {
-            Err(_) => proposalIds = (from_id..=last_proposal_id).collect(),
-            Ok(x) => proposalIds = serde_json::from_str(x.as_string().unwrap().as_str()).unwrap(),
-        }
-        console_log(
-            proposalIds
-                .iter()
-                .map(|n| n.to_string())
-                .collect::<Vec<String>>()
-                .join(", ")
-                .as_str(),
-        );
-
-        for id in proposalIds {
+        for id in from_id..last_proposal_id {
             let proposal = query_proposal_by_id(&self.client, id)
                 .await
                 .unwrap()
                 .expect("Proposal should be written to storage.");
-            // let votes = compute_proposal_votes(&self.client, id, proposal.voting_end_epoch).await;
-            // let total_voting_power =
-            //     get_total_staked_tokens(&self.client, proposal.voting_end_epoch)
-            //         .await
-            //         .unwrap();
-            // //TODO: for now we assume that interface does not support steward accounts
-            // let tally_type = proposal.get_tally_type(false);
+            let votes = compute_proposal_votes(&self.client, id, proposal.voting_end_epoch).await;
+            let total_voting_power =
+                get_total_staked_tokens(&self.client, proposal.voting_end_epoch)
+                    .await
+                    .unwrap();
+            //TODO: for now we assume that interface does not support steward accounts
+            let tally_type = proposal.get_tally_type(false);
 
             let proposal_type = match proposal.r#type {
                 ProposalType::PGFSteward(_) => "pgf_steward",
@@ -460,7 +445,7 @@ impl Query {
 
             let content = serde_json::to_string(&proposal.content)?;
 
-            //let proposal_result = compute_proposal_result(votes, total_voting_power, tally_type);
+            let proposal_result = compute_proposal_result(votes, total_voting_power, tally_type);
 
             let proposal_info = ProposalInfo {
                 id: proposal.id.to_string(),
@@ -471,17 +456,13 @@ impl Query {
                 grace_epoch: proposal.grace_epoch.0,
                 content,
                 status: status.to_string(),
-                result: "0".to_string(),
-                total_voting_power: "0".to_string(),
-                total_yay_power: "0".to_string(),
-                total_nay_power: "0".to_string(),
+                result: proposal_result.result.to_string(),
+                total_voting_power: proposal_result.total_voting_power.to_string_native(),
+                total_yay_power: proposal_result.total_yay_power.to_string_native(),
+                total_nay_power: proposal_result.total_nay_power.to_string_native(),
             };
 
             proposals.push(proposal_info);
-        }
-
-        if proposals.len() == 0 {
-            return self.query_proposals1().await;
         }
 
         let mut writer = vec![];
