@@ -65,7 +65,7 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
     derived.namada[maybeActiveDelegator.value].details.publicKey :
     undefined;
 
-  const [memo,setMemo] = useState<string>(tpknamAddr!);
+  const [memo, setMemo] = useState<string>(tpknamAddr!);
 
   const onContainerClick = useCallback(
     (e: React.MouseEvent<HTMLDialogElement>) => {
@@ -91,7 +91,7 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
         throw new Error("No active delegator");
       }
       const proposal = maybeProposal.value;
-
+      console.log("voting with memo", memo);
       await signer.submitVoteProposal(
         {
           signer: maybeActiveDelegator.value,
@@ -241,22 +241,22 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
                   }))}
                   onChange={(e) => {
                     setActiveDelegator(O.some(e.target.value));
-                  }}    
+                  }}
                 />
                 <span>Power: {+(delegations as any)?.[delegatorAddress]?.toString() / 1000000}</span>
                 <br></br>
                 <ProposalDetailsAddressesHeader>
-                  Memo: 
+                  Memo:
                 </ProposalDetailsAddressesHeader>
                 <Input
-          type="text"
-          value={memo || tpknamAddr}
-          onChange={(e) => setMemo(e.target.value)}
-          label=""
-          style={{color: "white"}}
-        />
+                  type="text"
+                  value={memo || tpknamAddr}
+                  onChange={(e) => setMemo(e.target.value)}
+                  label=""
+                  style={{ color: "white" }}
+                />
               </ProposalDetailsAddresses>
-            
+
               <ProposalDetailsButtons>
                 <ProposalCardVoteButton
                   onClick={() => vote(true, memo || tpknamAddr!)}
