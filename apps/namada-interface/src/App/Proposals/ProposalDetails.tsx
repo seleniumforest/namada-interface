@@ -3,7 +3,7 @@ import * as A from "fp-ts/Array";
 import * as O from "fp-ts/Option";
 
 import { chains } from "@namada/chains";
-import { Select } from "@namada/components";
+import { Input, Select } from "@namada/components";
 import { getIntegration } from "@namada/integrations";
 import { Query } from "@namada/shared";
 import { AccountType, Chain, Signer, Tokens } from "@namada/types";
@@ -61,9 +61,11 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
   const [open, setOpen] = useState<boolean>(props.open);
 
 
-  let tpknamAddr = O.isSome(maybeActiveDelegator) && maybeActiveDelegator.value.startsWith("tnam1") ?
+  const tpknamAddr = O.isSome(maybeActiveDelegator) && maybeActiveDelegator.value.startsWith("tnam1") ?
     derived.namada[maybeActiveDelegator.value].details.publicKey :
     undefined;
+
+  const [memo,setMemo] = useState<string>(tpknamAddr!);
 
   const onContainerClick = useCallback(
     (e: React.MouseEvent<HTMLDialogElement>) => {
@@ -140,7 +142,7 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
       fetchData(maybeProposal.value);
     }
   }, [JSON.stringify(addresses), maybeProposal]);
-
+  console.log("memo", memo, "tpknamAddr", tpknamAddr);
   if (
     // O.isSome(maybeActiveDelegator) &&
     // O.isSome(maybeDelegations) &&
@@ -239,13 +241,25 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
                   }))}
                   onChange={(e) => {
                     setActiveDelegator(O.some(e.target.value));
-                  }}
+                  }}    
                 />
-                Power: {+(delegations as any)?.[delegatorAddress]?.toString() / 1000000}
+                <span>Power: {+(delegations as any)?.[delegatorAddress]?.toString() / 1000000}</span>
+                <br></br>
+                <ProposalDetailsAddressesHeader>
+                  Memo: 
+                </ProposalDetailsAddressesHeader>
+                <Input
+          type="text"
+          value={memo || tpknamAddr}
+          onChange={(e) => setMemo(e.target.value)}
+          label=""
+          style={{color: "white"}}
+        />
               </ProposalDetailsAddresses>
+            
               <ProposalDetailsButtons>
                 <ProposalCardVoteButton
-                  onClick={() => vote(true, tpknamAddr!)}
+                  onClick={() => vote(true, memo || tpknamAddr!)}
                   disabled={activeProposalVotes.get(delegatorAddress) === true}
                   title={
                     activeProposalVotes.get(delegatorAddress)
@@ -256,7 +270,7 @@ export const ProposalDetails = (props: ProposalDetailsProps): JSX.Element => {
                   Vote YAY
                 </ProposalCardVoteButton>
                 <ProposalCardVoteButton
-                  onClick={() => vote(false, tpknamAddr!)}
+                  onClick={() => vote(false, memo || tpknamAddr!)}
                   disabled={activeProposalVotes.get(delegatorAddress) === false}
                   title={
                     !activeProposalVotes.get(delegatorAddress)
