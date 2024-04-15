@@ -3,7 +3,7 @@ import { ProxyMappings } from "../types";
 
 const DEFAULT_ALIAS = "Namada";
 const DEFAULT_CHAIN_ID = "public-testnet-15.0dacadb8d663";
-const DEFAULT_RPC = "https://proxy.heliax.click/public-testnet-15.0dacadb8d663";
+const DEFAULT_RPC = "https://se-namada-rpc.quantnode.xyz/";
 const DEFAULT_BECH32_PREFIX = "tnam";
 
 const {
@@ -28,6 +28,7 @@ const namada = {
   currency: {
     token: "Nam",
     symbol: "NAM",
+    address: "tnam1qxvg64psvhwumv3mwrrjfcz0h3t3274hwggyzcee",
     gasPriceStep: { low: 0.01, average: 0.025, high: 0.03 },
   },
   extension: Extensions["namada"],
